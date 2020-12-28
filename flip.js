@@ -264,10 +264,9 @@ function set_time( when ) {
 
 
 /* Given a board drawer db, a piece p, a start and and end rotation, rotate it */
-const INCREMENT_DEGREES = 5;
+const INCREMENT_DEGREES = 10;
 const INCREMENT_MS      = 10;
 function rotatePieceTimer( db, p, start, end ) {
-    console.log("2. db=",db,"p=",p,"start=",start,"end=",end);
     if (start > end) {
         start = end;
     }
@@ -280,10 +279,8 @@ function rotatePieceTimer( db, p, start, end ) {
 
 /* rotate the given piece from start to end (in degrees). Previously done with timers; now done with SVG animation */
 function rotatePieceSVGAnimation( p, start, end){
-    console.log("Moved",p,"from",start,"to",end);
     p.angle = end;
     var elem = document.getElementById( this.idForPiece(p) );
-    console.log("elem:",elem);
     elem.setAttribute('transform', this.transformForPiece(p));
     return;
 
@@ -316,7 +313,6 @@ $(document).ready(function() {
     let svg = $('#flipView');
     const cells_wide = Math.max(svg.attr('cells_wide'), 4); // don't go smaller than 4
     const cells_high = Math.max(svg.attr('cells_high'),4);
-    console.log("cells_wide:",cells_wide,"cells_high:",cells_high);
 
     // Construct a board of this size
     let boardHistory = Array(0);
@@ -326,23 +322,21 @@ $(document).ready(function() {
     // Construct a board drawer and draw it
     let db = new MakeBoardSVG(cells_wide, cells_high, svg);
     db.addBoard(board);         // add the board
-    console.log("1. db=",db);
 
-    let interval = null;
-
-    $('#roll').click( function (e) {
-        //let last = boards[boards.length - 1];
-        //let next = last.copy();
+    function roll (e) {
         /* Pick a random piece */
         let i = Math.floor(Math.random() * cells_wide);
         let j = Math.floor(Math.random() * cells_high);
         let p = board.piece(i,j); // get the piece
-        //p.flip()
-        //db.drawPiece( p );
+	console.log("roll p=",p);
         rotatePieceTimer(db, p, p.angle, Math.ceil(p.angle/180)*180+180) // rotate with timer
-        //boards.push(next);
-        //$('#time').text(boards.length);
-    });
+        //$('#time').text(boardHistory.length);
+    }
+
+    $('#roll').click(  roll );
+
+    let interval = null;
+
 
     $('#run').click( function(e) {
         if (interval==null) {
