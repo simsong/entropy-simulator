@@ -94,7 +94,7 @@ class BoardView {
         return this.height * (j+.5) / this.cells_high;
     }
 
-    /* Not sure this is ever used */
+    /* Abstract entry point */
     drawPiece(p) {
         if (USE_ROTATION) {
             this.drawRotatedPiece( p );
@@ -160,18 +160,6 @@ class DrawBoardCanvas extends BoardView {
         this.ctx.restore();
     }
 
-    /* Given a piece p, rotate it from start to end */
-    rotatePiece( p, start, end ) {
-        if (start > end) {
-            start = end;
-        }
-        p.angle = start;
-        this.drawRotatedPiece(p);
-        if (p.angle < end){
-            let me = this;
-            setTimeout( function () { me.rotatePiece( p, start+10, end); }, 5);
-        }
-    }
     /* Draw a piece at its location in WHITE or BLACK */
     drawColoredPiece(p) {
         let x = this.x(p.col);
@@ -197,19 +185,6 @@ function xystring(x,y){
 
 function xycomma(x,y){
  return x + "," + y
-}
-
-function rectpathxy(x,y,w,h){
-   return "M " + xystring(x,y) +
-   " L " + xystring(x+w,y) +
-   " L " + xystring(x+w,y+h) +
-   " L " + xystring(x,y+h) +
-   " Z "
-}
-
-/* linexy - draw a line to the X,Y position */
-function lxy(x,y){
-    return "L " + x + " " + y + " ";
 }
 
 class MakeBoardSVG extends BoardView {
@@ -240,7 +215,6 @@ class MakeBoardSVG extends BoardView {
     idForPiece(p) {
         return "arrow-" + p.col + "," + p.row;
     }
-
     addPathForPiece(p) {
         let x = this.x(p.col);
         let y = this.y(p.row);
@@ -252,6 +226,11 @@ class MakeBoardSVG extends BoardView {
         box.setAttribute('height', r*2);
         this.svg.append(box)
 
+        /* linexy - draw a line to the X,Y position */
+        function lxy(x,y){
+            return "L " + x + " " + y + " ";
+        }
+
         let arrow = document.createElementNS('http://www.w3.org/2000/svg','path');
         arrow.setAttribute('style', 'stroke:none;fill:black');
         arrow.setAttribute('transform', this.transformForPiece(p));
@@ -259,28 +238,10 @@ class MakeBoardSVG extends BoardView {
                           'M 0 0 '+lxy(0,-r) + lxy(-r, 0) + lxy(-r/2,0)
                           + lxy(-r/2, r) + lxy(+r/2,r) + lxy(+r/2,0) + lxy(r,0) + lxy(0,-r) + " Z ");
         arrow.setAttribute('id', this.idForPiece(p));
+        p.path = arrow;         // modify the piece with its svg path
         box.append(arrow);
     }
-    /* rotate the given piece from start to end (in degrees). Previously done with timers; now done with SVG animation */
-    rotatePiece( p, start, end){
-        console.log("Moved",p,"from",start,"to",end);
-        p.angle = end;
-        var elem = document.getElementById( this.idForPiece(p) );
-        console.log("elem:",elem);
-        //elem.setAttribute('transform', this.transformForPiece(p));
-        var t = document.createElementNS('http://www.w3.org/2000/svg', 'animateTransform');
-        t.setAttribute('attributeName','transform');
-        //t.setAttribute('attributeType','XML');
-        t.setAttribute('type','rotate');
-        t.setAttribute('from','0 50 50 ');
-        t.setAttribute('to','180 50 50');
-        //t.setAttribute('begin','0s');
-        //t.setAttribute('end','5s');
-        t.setAttribute('dur','5s');
-        //t.setAttribute('fill','freeze');
-        //t.setAttribute('restart','never');
-        elem.append(t);
-    }
+
     addBoard(board) {
         /* Add the board and all of its pieces */
         this.board = board;
@@ -289,12 +250,57 @@ class MakeBoardSVG extends BoardView {
             this.addPathForPiece(p);
         }
     }
+
+    drawPiece(p) {
+        /* Given a piece, set the path for this piece to have the same rotation */
+        p.path.setAttribute('transform', this.transformForPiece(p));
+    }
 }
 
 
 function set_time( when ) {
 }
 
+
+
+/* Given a board drawer db, a piece p, a start and and end rotation, rotate it */
+const INCREMENT_DEGREES = 5;
+const INCREMENT_MS      = 10;
+function rotatePieceTimer( db, p, start, end ) {
+    console.log("2. db=",db,"p=",p,"start=",start,"end=",end);
+    if (start > end) {
+        start = end;
+    }
+    p.angle = start;            // set the current angle
+    db.drawPiece(p);            // draw the piece at the curren totation
+    if (p.angle < end) {         // if we have more to go
+        setTimeout( function () { rotatePieceTimer( db, p, start+INCREMENT_DEGREES, end); }, INCREMENT_MS);
+    }
+}
+
+/* rotate the given piece from start to end (in degrees). Previously done with timers; now done with SVG animation */
+function rotatePieceSVGAnimation( p, start, end){
+    console.log("Moved",p,"from",start,"to",end);
+    p.angle = end;
+    var elem = document.getElementById( this.idForPiece(p) );
+    console.log("elem:",elem);
+    elem.setAttribute('transform', this.transformForPiece(p));
+    return;
+
+    // This is the animation I can't get to work...
+    var t = document.createElementNS('http://www.w3.org/2000/svg', 'animateTransform');
+    t.setAttribute('attributeName','transform');
+    //t.setAttribute('attributeType','XML');
+    t.setAttribute('type','rotate');
+    t.setAttribute('from','0 50 50 ');
+    t.setAttribute('to','180 50 50');
+    //t.setAttribute('begin','0s');
+    //t.setAttribute('end','5s');
+    t.setAttribute('dur','5s');
+    //t.setAttribute('fill','freeze');
+    //t.setAttribute('restart','never');
+    elem.append(t);
+}
 
 $(document).ready(function() {
     // create the slider
@@ -320,29 +326,30 @@ $(document).ready(function() {
     // Construct a board drawer and draw it
     let db = new MakeBoardSVG(cells_wide, cells_high, svg);
     db.addBoard(board);         // add the board
-
-    function roll(ctx) {
-        //let last = boards[boards.length - 1];
-        //let next = last.copy();
-        let i = Math.floor(Math.random() * cells_wide);
-        let j = Math.floor(Math.random() * cells_high);
-        let p = board.piece(i,j);
-        //p.flip()
-        //db.drawPiece( p );
-        db.rotatePiece( p, p.angle, Math.ceil(p.angle/180)*180+180);
-        //boards.push(next);
-        //$('#time').text(boards.length);
-    }
+    console.log("1. db=",db);
 
     let interval = null;
 
-    $('#roll').click( roll ) ;
-    $('#run').click( function() {
+    $('#roll').click( function (e) {
+        //let last = boards[boards.length - 1];
+        //let next = last.copy();
+        /* Pick a random piece */
+        let i = Math.floor(Math.random() * cells_wide);
+        let j = Math.floor(Math.random() * cells_high);
+        let p = board.piece(i,j); // get the piece
+        //p.flip()
+        //db.drawPiece( p );
+        rotatePieceTimer(db, p, p.angle, Math.ceil(p.angle/180)*180+180) // rotate with timer
+        //boards.push(next);
+        //$('#time').text(boards.length);
+    });
+
+    $('#run').click( function(e) {
         if (interval==null) {
             interval = setInterval(roll, 200);
         }
     });
-    $('#stop').click( function() {
+    $('#stop').click( function(e) {
         if (interval!=null){
             clearInterval(interval);
             interval=null;
