@@ -209,7 +209,6 @@ class MakeBoardSVG extends BoardView {
         }
     }
     transformForPiece(p) {
-        //return 'translate('+x+','+y+') rotate('+p.angle+')'
         return 'translate(' + this.radius + ',' + this.radius + ') rotate('+p.angle+')'
     }
     idForPiece(p) {
@@ -277,26 +276,28 @@ function rotatePieceTimer( db, p, start, end ) {
     }
 }
 
-/* rotate the given piece from start to end (in degrees). Previously done with timers; now done with SVG animation */
-function rotatePieceSVGAnimation( p, start, end){
-    p.angle = end;
-    var elem = document.getElementById( this.idForPiece(p) );
-    elem.setAttribute('transform', this.transformForPiece(p));
-    return;
+/* rotate the given piece from start to end (in degrees) using SVG. Should be smoother in most browsers */
+function rotatePieceSVG( db, p, start, end){
+    // this just changes the attribute:
+
+    var noAnimation = false;
+    if (noAnimation) {
+	p.angle = end;
+	p.path.setAttribute('transform',db.transformForPiece(p));
+	return;
+    }
 
     // This is the animation I can't get to work...
     var t = document.createElementNS('http://www.w3.org/2000/svg', 'animateTransform');
     t.setAttribute('attributeName','transform');
-    //t.setAttribute('attributeType','XML');
+    t.setAttribute('attributeType','XML');
     t.setAttribute('type','rotate');
-    t.setAttribute('from','0 50 50 ');
-    t.setAttribute('to','180 50 50');
-    //t.setAttribute('begin','0s');
-    //t.setAttribute('end','5s');
-    t.setAttribute('dur','5s');
-    //t.setAttribute('fill','freeze');
-    //t.setAttribute('restart','never');
-    elem.append(t);
+    t.setAttribute('from',p.angle+' '+db.radius+' '+db.radius);
+    p.angle = end;
+    t.setAttribute('to',p.angle+' '+db.radius+' '+db.radius);
+    t.setAttribute('dur','1s');
+    p.path.append(t);
+    console.log("after rotate: p=",p);
 }
 
 $(document).ready(function() {
@@ -330,6 +331,7 @@ $(document).ready(function() {
         let p = board.piece(i,j); // get the piece
 	console.log("roll p=",p);
         rotatePieceTimer(db, p, p.angle, Math.ceil(p.angle/180)*180+180) // rotate with timer
+        //rotatePieceSVG(db, p, p.angle, Math.ceil(p.angle/180)*180+180) // rotate with timer
         //$('#time').text(boardHistory.length);
     }
 
